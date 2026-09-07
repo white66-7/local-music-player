@@ -1,4 +1,3 @@
-<!-- src/modules/bloghome/components/about/SpaceCursor.vue -->
 <template>
   <div v-show="isVisible" class="space-cursor-layer">
     <!-- 1. 轻量等离子粒子尾流画布 -->
@@ -27,49 +26,48 @@
             <stop offset="60%" stop-color="#E2E8F0"/>
             <stop offset="100%" stop-color="#CBD5E1"/>
           </linearGradient>
-          <!-- 侧翼切面阴影（强化多面体立体感） -->
+          <!-- 侧翼切面阴影 -->
           <linearGradient id="facetShadow" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stop-color="#000000" stop-opacity="0.18"/>
             <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
           </linearGradient>
         </defs>
 
-        <!-- 1. 底部深黑防热瓦底盘与外边缘（碳黑隔热层） -->
+        <!-- 1. 底部深黑防热瓦底盘与外边缘 -->
         <path d="M21 7H27L43 45L40 54L34 52L24 53L14 52L8 54L5 45L21 7Z" fill="#111317" stroke="#2D3748" stroke-width="0.8" stroke-linejoin="round"/>
 
-        <!-- 2. 主甲板：白色航天陶瓷机身（标志性平头楔形） -->
+        <!-- 2. 主甲板：白色航天陶瓷机身 -->
         <path d="M21.5 8.5H26.5L41.2 44.5L38.5 51.5L32.5 50L24 51L15.5 50L9.5 51.5L6.8 44.5L21.5 8.5Z" fill="url(#rangerHull)"/>
 
-        <!-- 3. 左/右侧多面折角暗面（增强 3D 棱角折线） -->
+        <!-- 3. 左/右侧多面折角暗面 -->
         <path d="M6.8 44.5L21.5 8.5L24 22L16 48L9.5 51.5L6.8 44.5Z" fill="url(#facetShadow)"/>
         <path d="M41.2 44.5L26.5 8.5L24 22L32 48L38.5 51.5L41.2 44.5Z" fill="url(#facetShadow)" transform="scale(-1, 1) translate(-48, 0)"/>
 
-        <!-- 4. 中央隆起脊梁与折线骨架（Spine） -->
+        <!-- 4. 中央隆起脊梁与折线骨架 -->
         <polygon points="21.5,8.5 26.5,8.5 27.5,45 24,47 20.5,45" fill="#F1F5F9" stroke="#94A3B8" stroke-width="0.4"/>
         <line x1="24" y1="8.5" x2="24" y2="47" stroke="#CBD5E1" stroke-width="0.6"/>
 
-        <!-- 5. 漫游者号标志性多联驾驶舱风挡（炭黑偏冷蓝多边形） -->
+        <!-- 5. 漫游者号多联驾驶舱风挡 -->
         <polygon points="21.5,15 26.5,15 27.2,19 20.8,19" fill="#090D14" stroke="#38BDF8" stroke-width="0.4" stroke-opacity="0.8"/>
-        <!-- 侧边辅助观察窗 -->
         <polygon points="19.5,19.8 17.5,23 20.5,22.2" fill="#090D14"/>
         <polygon points="28.5,19.8 30.5,23 27.5,22.2" fill="#090D14"/>
 
-        <!-- 6. 背部中央圆形对接气闸环（Interstellar 标志对接舱门） -->
+        <!-- 6. 背部中央圆形对接气闸环 -->
         <circle cx="24" cy="32" r="3.2" fill="#1E293B" stroke="#64748B" stroke-width="0.6"/>
         <circle cx="24" cy="32" r="1.6" fill="#0F172A" stroke="#94A3B8" stroke-width="0.4"/>
         <circle cx="24" cy="32" r="0.6" fill="#38BDF8" opacity="0.8"/>
 
-        <!-- 7. 机体黑色拼接接缝与装甲刻线 -->
+        <!-- 7. 机体黑色拼接接缝刻线 -->
         <line x1="16" y1="36" x2="9.5" y2="43" stroke="#94A3B8" stroke-width="0.5"/>
         <line x1="32" y1="36" x2="38.5" y2="43" stroke="#94A3B8" stroke-width="0.5"/>
         <line x1="18" y1="45" x2="16" y2="49" stroke="#64748B" stroke-width="0.5"/>
         <line x1="30" y1="45" x2="32" y2="49" stroke="#64748B" stroke-width="0.5"/>
 
-        <!-- 8. 尾部双发主推进喷口（沉入式钛黑喷管） -->
+        <!-- 8. 尾部双发主推进喷口 -->
         <rect x="14.5" y="50" width="4.5" height="3" rx="0.6" fill="#0F172A" stroke="#475569" stroke-width="0.6"/>
         <rect x="29" y="50" width="4.5" height="3" rx="0.6" fill="#0F172A" stroke="#475569" stroke-width="0.6"/>
 
-        <!-- 9. 翼梢姿态控制喷嘴标记点（RCS） -->
+        <!-- 9. RCS 姿态喷嘴 -->
         <rect x="7" y="44" width="1.2" height="1.2" fill="#334155"/>
         <rect x="39.8" y="44" width="1.2" height="1.2" fill="#334155"/>
       </svg>
@@ -86,8 +84,6 @@ const trailCanvasRef = ref(null)
 const thrusterLeft = ref(null)
 const thrusterRight = ref(null)
 
-
-// 鼠标位置与物理坐标
 let mouseX = -100
 let mouseY = -100
 let shipX = -100
@@ -95,7 +91,6 @@ let shipY = -100
 let prevX = -100
 let prevY = -100
 
-// 航向、侧倾与油门
 let shipAngle = 0
 let targetAngle = 0
 let rollTilt = 0
@@ -103,7 +98,6 @@ let currentSpeed = 0
 let engineThrottle = 0
 let rafId = null
 
-// Canvas 尺寸与粒子池
 let ctx = null
 let canvasW = 0
 let canvasH = 0
@@ -135,7 +129,6 @@ const onMouseLeave = () => {
   isVisible.value = false
 }
 
-// 尾喷粒子发射器（严格对齐 Ranger 新尺寸 48x64）
 const spawnTrailParticles = () => {
   if (engineThrottle < 0.25 || particles.length >= MAX_PARTICLES) return
 
@@ -143,7 +136,6 @@ const spawnTrailParticles = () => {
   const cos = Math.cos(rad)
   const sin = Math.sin(rad)
 
-  // 左右两个主喷口在旋转矩阵下的真实世界坐标 (X 偏移: ±7.25, Y 偏移从机头算起: 45)
   const nozzleLeftX = shipX + (-7.25 * cos - 45 * sin)
   const nozzleLeftY = shipY + (-7.25 * sin + 45 * cos)
   const nozzleRightX = shipX + (7.25 * cos - 45 * sin)
@@ -177,7 +169,6 @@ const spawnTrailParticles = () => {
   }
 }
 
-// 物理与运动循环
 const updateLoop = () => {
   if (isVisible.value && shipRef.value) {
     const dx = mouseX - prevX
@@ -187,7 +178,6 @@ const updateLoop = () => {
     const rawSpeed = Math.hypot(dx, dy)
     currentSpeed += (rawSpeed - currentSpeed) * 0.35
 
-    // 高精度跟随（吸附锁定，消除拖曳抖动）
     const distX = mouseX - shipX
     const distY = mouseY - shipY
     if (Math.hypot(distX, distY) < 0.4) {
@@ -198,7 +188,6 @@ const updateLoop = () => {
       shipY += distY * 0.84
     }
 
-    // 动态航向角与小角度翻滚侧倾
     if (rawSpeed > 1.0) {
       targetAngle = (Math.atan2(dy, dx) * 180) / Math.PI + 90
     }
@@ -211,10 +200,8 @@ const updateLoop = () => {
     shipAngle += turnRate
     rollTilt += (turnRate * 0.6 - rollTilt) * 0.25
 
-    // 位姿变换（中心锚定在机头 24px, 8px）
     shipRef.value.style.transform = `translate3d(${shipX - 24}px, ${shipY - 8}px, 0) rotate(${shipAngle}deg) skewX(${rollTilt * -0.35}deg)`
 
-    // 喷射引擎油门控制（静止时归 0 彻底熄火）
     const targetThrottle = rawSpeed > 0.4 ? Math.min(rawSpeed / 4.2, 2.6) : 0
     const lerpRate = targetThrottle > engineThrottle ? 0.45 : 0.2
     engineThrottle += (targetThrottle - engineThrottle) * lerpRate
@@ -241,7 +228,6 @@ const updateLoop = () => {
     spawnTrailParticles()
   }
 
-  // 渲染尾迹 Canvas
   if (ctx && canvasW > 0) {
     ctx.clearRect(0, 0, canvasW, canvasH)
 
@@ -277,7 +263,13 @@ const resizeCanvas = () => {
 }
 
 onMounted(() => {
-  if (window.matchMedia('(pointer: coarse)').matches) return
+  // 触摸屏检测：手机与平板端直接退出，不挂载任何事件和 RAF
+  const isTouch = 
+    'ontouchstart' in window || 
+    navigator.maxTouchPoints > 0 || 
+    window.matchMedia('(pointer: coarse)').matches
+
+  if (isTouch) return
 
   resizeCanvas()
   window.addEventListener('resize', resizeCanvas)
@@ -314,14 +306,13 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 飞船主体容器（针对 48x64 Ranger 调整中心原点） */
 .ship-wrapper {
   position: absolute;
   top: 0;
   left: 0;
   width: 48px;
   height: 64px;
-  transform-origin: 24px 8px; /* 旋转中心位于机首钝头中央 */
+  transform-origin: 24px 8px;
   will-change: transform;
   pointer-events: none;
 }
@@ -332,15 +323,13 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   z-index: 3;
-  /* 增加白色机身在深色/浅色背景上的对比立体光影 */
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease;
 }
 
-/* 双发等离子尾推总成 */
 .thrusters-group {
   position: absolute;
-  top: 51px; /* 对齐喷口 Y 轴 */
+  top: 51px;
   left: 0;
   width: 100%;
   height: 28px;
@@ -348,7 +337,6 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 喷射火焰本体 */
 .thruster-plume {
   position: absolute;
   width: 5px;
@@ -361,7 +349,6 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* 精准对齐 Ranger 左右喷口位置 */
 .thruster-plume.left {
   left: 14.5px;
 }
@@ -370,7 +357,6 @@ onUnmounted(() => {
   left: 28.5px;
 }
 
-/* 外焰：等离子冷蓝能量流 */
 .plume-outer {
   position: absolute;
   inset: 0;
@@ -380,7 +366,6 @@ onUnmounted(() => {
   animation: plume-jitter 0.08s infinite alternate ease-in-out;
 }
 
-/* 内焰：超高温等离子白核 */
 .plume-core {
   position: absolute;
   top: 0;
@@ -403,7 +388,6 @@ onUnmounted(() => {
   100% { height: 72%; }
 }
 
-/* 交互悬停锁定 */
 .ship-wrapper.is-locked .ship-svg {
   transform: scale(1.12);
   filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.9)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8));

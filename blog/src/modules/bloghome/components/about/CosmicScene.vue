@@ -1,4 +1,3 @@
-<!-- src/modules/bloghome/components/about/CosmicScene.vue -->
 <template>
   <div class="cosmic-hero-wrapper">
     <div class="cosmic-stage">
@@ -122,13 +121,14 @@ const canvasRef = ref(null)
 const audioRef = ref(null)
 const isPlaying = ref(false)
 let animId = null
+let observer = null
+const isSceneVisible = ref(true)
 
 const isModalOpen = ref(false)
 const activeSignal = ref(null)
 
 /**
  * 16 组双轨坐标池
- * 移动端 (m) 严格避开顶部导航栏 (top >= 16%)，避让中央天体与底部两角按钮
  */
 const safePositions = [
   // 顶部天顶深空走廊
@@ -149,7 +149,7 @@ const safePositions = [
   { d: { top: '62%', left: '75%' }, m: { top: '56%', left: '92%' } }, // 10
   { d: { top: '74%', left: '84%' }, m: { top: '68%', left: '91%' } }, // 11
 
-  // 底部安全区（避开左下跃迁、右下音乐）
+  // 底部安全区
   { d: { top: '80%', left: '14%' }, m: { top: '78%', left: '16%' } }, // 12
   { d: { top: '86%', left: '8%'  }, m: { top: '83%', left: '26%' } }, // 13
   { d: { top: '84%', left: '88%' }, m: { top: '85%', left: '50%' } }, // 14
@@ -164,13 +164,13 @@ const rawSignals = ref([
 // ================= 星系分页与跃迁状态 =================
 const GALAXY_SIZE = 8
 const currentGalaxyIndex = ref(0)
-const warpState = ref('idle') // 'idle' | 'leaving' | 'entering'
+const warpState = ref('idle')
 
 const totalGalaxies = computed(() => {
   return Math.max(1, Math.ceil(rawSignals.value.length / GALAXY_SIZE))
 })
 
-// 当前星系的星座编排（星座异构算法）
+// 当前星系的星座编排
 const currentGalaxySignals = computed(() => {
   const start = currentGalaxyIndex.value * GALAXY_SIZE
   const pageItems = rawSignals.value.slice(start, start + GALAXY_SIZE)
@@ -192,26 +192,21 @@ const currentGalaxySignals = computed(() => {
   })
 })
 
-// 星系跃迁函数（精准引力时序）
 const warpToNextGalaxy = () => {
   if (warpState.value !== 'idle') return
 
-  // 1. 启动引力坍缩与能量回聚
   warpState.value = 'leaving'
 
   setTimeout(() => {
-    // 2. 切换星系数据，触发曲率破界冲入
     currentGalaxyIndex.value = (currentGalaxyIndex.value + 1) % totalGalaxies.value
     warpState.value = 'entering'
 
-    // 3. 定格平稳
     setTimeout(() => {
       warpState.value = 'idle'
     }, 600)
-  }, 400) // 400ms 恰好让各阶梯信标的引力收拢平稳归零
+  }, 400)
 }
 
-// 异步拉取后端留言
 const fetchApprovedSignals = async () => {
   try {
     const res = await fetch('/api/signals')
@@ -241,33 +236,49 @@ const toggleAudio = () => {
   }
 }
 
-// Canvas 星空流星系统
+// Canvas 星空与流星系统 (包含离屏静态缓存与视口休眠)
 onMounted(() => {
   fetchApprovedSignals()
   const canvas = canvasRef.value
   if (!canvas) return
   const ctx = canvas.getContext('2d')
 
+  const isMobile = window.innerWidth <= 768
+  const STATIC_STAR_COUNT = isMobile ? 180 : 550
+  const TWINKLE_STAR_COUNT = isMobile ? 35 : 90
+
   let width = 0
   let height = 0
   let dpr = 1
 
-  let staticStars = []
+  // 离屏 Canvas：静态星星只画一次，每帧一次性 drawImage，极低开销
+  const offscreenCanvas = document.createElement('canvas')
+  const offscreenCtx = offscreenCanvas.getContext('2d')
   let twinklingStars = []
 
   const initStars = () => {
-    staticStars = Array.from({ length: 600 }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      size: Math.random() * 0.9 + 0.2,
-      alpha: Math.random() * 0.45 + 0.1
-    }))
+    offscreenCanvas.width = canvas.width
+    offscreenCanvas.height = canvas.height
+    offscreenCtx.scale(dpr, dpr)
+    offscreenCtx.clearRect(0, 0, width, height)
 
-    twinklingStars = Array.from({ length: 100 }, () => ({
+    for (let i = 0; i < STATIC_STAR_COUNT; i++) {
+      const x = Math.random() * width
+      const y = Math.random() * height
+      const size = Math.random() * 0.85 + 0.2
+      const alpha = Math.random() * 0.42 + 0.1
+
+      offscreenCtx.fillStyle = `rgba(240, 243, 255, ${alpha})`
+      offscreenCtx.beginPath()
+      offscreenCtx.arc(x, y, size, 0, Math.PI * 2)
+      offscreenCtx.fill()
+    }
+
+    twinklingStars = Array.from({ length: TWINKLE_STAR_COUNT }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 1.3 + 0.6,
-      baseAlpha: Math.random() * 0.4 + 0.3,
+      size: Math.random() * 1.1 + 0.5,
+      baseAlpha: Math.random() * 0.35 + 0.25,
       speed: Math.random() * 0.02 + 0.008,
       phase: Math.random() * Math.PI * 2
     }))
@@ -275,7 +286,7 @@ onMounted(() => {
 
   const handleResize = () => {
     if (!canvas) return
-    dpr = Math.min(window.devicePixelRatio || 1, 1.25)
+    dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.0 : 1.25)
     width = canvas.offsetWidth
     height = canvas.offsetHeight
     canvas.width = Math.floor(width * dpr)
@@ -293,10 +304,10 @@ onMounted(() => {
     }
     reset() {
       this.x = Math.random() * width * 1.3
-      this.y = Math.random() * (height * 0.5)
-      this.len = Math.random() * 100 + 50
-      this.speed = Math.random() * 7 + 7
-      this.size = Math.random() * 1.2 + 0.8
+      this.y = Math.random() * (height * 0.45)
+      this.len = Math.random() * 80 + 40
+      this.speed = Math.random() * 6 + 6
+      this.size = Math.random() * 1.0 + 0.6
       this.angle = (35 * Math.PI) / 180
       this.active = false
       this.wait = Math.random() * 180 + 30
@@ -319,7 +330,7 @@ onMounted(() => {
       const tailY = this.y - Math.sin(this.angle) * this.len
       const grad = c.createLinearGradient(this.x, this.y, tailX, tailY)
       grad.addColorStop(0, 'rgba(255, 255, 255, 1)')
-      grad.addColorStop(0.2, 'rgba(215, 230, 255, 0.7)')
+      grad.addColorStop(0.2, 'rgba(215, 230, 255, 0.65)')
       grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
 
       c.save()
@@ -334,27 +345,31 @@ onMounted(() => {
     }
   }
 
-  const shootingStars = Array.from({ length: 3 }, () => new ShootingStar())
+  const shootingStars = Array.from({ length: isMobile ? 1 : 2 }, () => new ShootingStar())
 
   const render = () => {
+    // 离开屏幕视口时跳过绘制，极大节省滑动时的手机主线程算力
+    if (!isSceneVisible.value) {
+      animId = requestAnimationFrame(render)
+      return
+    }
+
     ctx.clearRect(0, 0, width, height)
 
-    staticStars.forEach((s) => {
-      ctx.fillStyle = `rgba(240, 243, 255, ${s.alpha})`
-      ctx.beginPath()
-      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2)
-      ctx.fill()
-    })
+    // 1. 一键贴图静态星空
+    ctx.drawImage(offscreenCanvas, 0, 0, width, height)
 
+    // 2. 闪烁动态星
     twinklingStars.forEach((s) => {
       s.phase += s.speed
-      const alpha = s.baseAlpha + Math.sin(s.phase) * 0.3
-      ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.08, alpha)})`
+      const alpha = s.baseAlpha + Math.sin(s.phase) * 0.25
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.06, alpha)})`
       ctx.beginPath()
       ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2)
       ctx.fill()
     })
 
+    // 3. 流星
     shootingStars.forEach((star) => {
       star.update()
       star.draw(ctx)
@@ -364,8 +379,16 @@ onMounted(() => {
   }
   render()
 
+  // 交叉观察器：当用户向下滚动离开宇宙封面时自动休眠
+  observer = new IntersectionObserver(([entry]) => {
+    isSceneVisible.value = entry.isIntersecting
+  }, { threshold: 0.05 })
+
+  observer.observe(canvas)
+
   onUnmounted(() => {
     if (animId) cancelAnimationFrame(animId)
+    if (observer) observer.disconnect()
     window.removeEventListener('resize', handleResize)
   })
 })
@@ -437,30 +460,26 @@ onMounted(() => {
   pointer-events: auto;
   transform: translate(-50%, -50%);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
 }
 
 .interactive-beacon:hover {
   transform: translate(-50%, -50%) scale(1.3);
 }
 
-/* ================= 电影级：超空间跃迁动画 ================= */
-
-/* 1. 【高质感离场：引力坍缩与虚空湮灭】 */
+/* ================= 超空间跃迁动画 ================= */
 .interactive-beacon.is-warping-out {
   pointer-events: none;
   animation: warp-singularity-collapse 0.38s cubic-bezier(0.6, 0.05, 0.2, 1) forwards;
   animation-delay: var(--stagger);
 }
 
-/* 提示气泡瞬隐，绝不拖泥带水 */
 .interactive-beacon.is-warping-out .beacon-hint {
   opacity: 0 !important;
   transform: translateX(-50%) translateY(0) scale(0.6) !important;
   transition: all 0.12s ease !important;
 }
 
-/* 外部扩散波纹反向吸聚 */
 .interactive-beacon.is-warping-out .beacon-ripple {
   animation: none !important;
   transform: scale(0.1);
@@ -468,7 +487,6 @@ onMounted(() => {
   transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s ease;
 }
 
-/* 十字光芒瞬间极速向中心收拢折叠，杜绝散乱像素 */
 .interactive-beacon.is-warping-out .beacon-flare-h {
   animation: none !important;
   transform: scaleX(0) scaleY(2.5);
@@ -483,36 +501,31 @@ onMounted(() => {
   transition: all 0.22s cubic-bezier(0.7, 0, 0.84, 0);
 }
 
-/* 星体核心：聚变充能爆发 -> 极速回聚为针尖粒子湮灭 */
 .interactive-beacon.is-warping-out .beacon-core {
   animation: core-flash-collapse 0.38s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* 离场容器整体运动：先微吸蓄力，然后向深空极速陷落 */
 @keyframes warp-singularity-collapse {
   0% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
-    filter: brightness(1) drop-shadow(0 0 0 transparent);
+    filter: brightness(1);
   }
   25% {
     transform: translate(-50%, -50%) scale(1.15);
     opacity: 1;
-    filter: brightness(3.5) drop-shadow(0 0 14px #38bdf8);
+    filter: brightness(3.5);
   }
   50% {
     transform: translate(-50%, -50%) scale(0.7);
     opacity: 0.9;
-    filter: brightness(2) blur(1px);
   }
   100% {
     transform: translate(-50%, -50%) scale(0);
     opacity: 0;
-    filter: brightness(5) blur(3px);
   }
 }
 
-/* 核心光斑的高能白炽脉冲 */
 @keyframes core-flash-collapse {
   0% {
     transform: scale(1);
@@ -529,7 +542,6 @@ onMounted(() => {
   }
 }
 
-/* 2. 【高质感入场：从深空曲率破界减速定格】 */
 .interactive-beacon.is-warping-in {
   pointer-events: none;
   animation: warp-arrive-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -540,30 +552,26 @@ onMounted(() => {
   0% {
     transform: translate(-50%, -50%) scale(3.5);
     opacity: 0;
-    filter: blur(8px) brightness(3);
+    filter: brightness(2.5);
   }
   35% {
     opacity: 1;
-    filter: blur(1px) brightness(2);
   }
   75% {
     transform: translate(-50%, -50%) scale(0.9);
-    filter: blur(0px) brightness(1.2);
   }
   100% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
-    filter: blur(0px) brightness(1);
   }
 }
 
-/* 核心发光元素原生常态 */
 .beacon-core {
   width: 4.5px;
   height: 4.5px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 0 10px #ffffff, 0 0 20px rgba(180, 215, 255, 0.9);
+  box-shadow: 0 0 10px #ffffff, 0 0 16px rgba(180, 215, 255, 0.85);
   z-index: 2;
   transition: all 0.2s ease;
 }
@@ -695,10 +703,6 @@ onMounted(() => {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.85);
-}
-
-.warp-galaxy-btn:hover .warp-arrow {
-  transform: translate(2px, -2px);
 }
 
 /* ================= 【右下角】背景音按钮 ================= */
@@ -1032,14 +1036,51 @@ onMounted(() => {
   clip-path: ellipse(47% 22% at 50% 50%);
 }
 
-/* ================= 移动端精准避让与样式适配 ================= */
+/* ================= 移动端精准避让与性能优化 ================= */
 @media (max-width: 768px) {
+  /* 1. 移动端取消全场景持续缩放，让高刷 OLED 屏画面更锐利且彻底消除重绘掉帧 */
+  .scene {
+    animation: none !important;
+  }
+
+  /* 2. 优化基座线条，去掉模糊开销，呈现清晰的全息线框质感 */
+  .cuboid .outline {
+    box-shadow: none !important;
+  }
+  
+  @keyframes outline-animation {
+    from {
+      --space: var(--initial-space, 55px);
+      opacity: 0;
+    }
+    20% { opacity: 0.45; }
+    to {
+      --space: calc(var(--initial-space, 55px) + 150px);
+      opacity: 0;
+    }
+  }
+
+  /* 3. 适度收窄移动端行星阴影半径 */
+  .sun {
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.25) !important;
+  }
+  .planet {
+    box-shadow: none !important;
+  }
+
+  /* 4. 优化信标十字光 */
+  .beacon-flare-h,
+  .beacon-flare-v {
+    animation: none !important;
+    opacity: 0.75;
+  }
+
   .interactive-beacon {
     top: var(--m-top);
     left: var(--m-left);
   }
 
-  /* 靠左侧边缘的星星，气泡向右对齐，防止被屏幕切除 */
+  /* 靠左侧边缘星星提示气泡定位 */
   .interactive-beacon[style*="--m-left: 7%"] .beacon-hint,
   .interactive-beacon[style*="--m-left: 8%"] .beacon-hint,
   .interactive-beacon[style*="--m-left: 9%"] .beacon-hint {
@@ -1047,7 +1088,7 @@ onMounted(() => {
     transform: translateX(0) translateY(6px);
   }
 
-  /* 靠右侧边缘的星星，气泡向左对齐 */
+  /* 靠右侧边缘星星提示气泡定位 */
   .interactive-beacon[style*="--m-left: 91%"] .beacon-hint,
   .interactive-beacon[style*="--m-left: 92%"] .beacon-hint,
   .interactive-beacon[style*="--m-left: 93%"] .beacon-hint {
@@ -1056,7 +1097,7 @@ onMounted(() => {
     transform: translateX(0) translateY(6px);
   }
 
-  /* 跃迁按钮与音乐按钮在手机端的位置微调 */
+  /* 跃迁与音乐按钮 */
   .warp-galaxy-btn {
     left: 1.2rem;
     bottom: 1.5rem;
