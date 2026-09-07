@@ -130,7 +130,7 @@ const triggerBounce = () => {
   }, 450)
 }
 
-// 语句池：包含融入了动态幽默度/诚实度的趣味台词
+// 语句池
 const tarsQuotes: string[] = [
   '自爆倒计时启动: 3、2、1……(幽默度 90%)',
   '牛顿第三定律：人类前进的唯一方式，是留下点什么。',
@@ -168,21 +168,23 @@ onUnmounted(() => {
 .tars-pet-container {
   position: relative;
   width: 88px;
-  height: 102px;
+  height: 104px;
   cursor: pointer;
 }
 
+/* 应用能露出干净顶部的俯视视角 */
 .tars-stage {
   position: relative;
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  transform: perspective(650px) rotateX(-5deg) rotateY(-12deg);
+  transform: perspective(650px) rotateX(-15deg) rotateY(-14deg);
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* 悬停时微微抬头对视 */
 .tars-pet-container:hover .tars-stage {
-  transform: perspective(650px) rotateX(-2deg) rotateY(-6deg) translateY(-6px) scale(1.04);
+  transform: perspective(650px) rotateX(-8deg) rotateY(-8deg) translateY(-6px) scale(1.04);
 }
 
 /* 点击时的 Q 弹跳跃反馈 */
@@ -191,10 +193,10 @@ onUnmounted(() => {
 }
 
 @keyframes chibi-jump {
-  0% { transform: perspective(650px) rotateX(-5deg) rotateY(-12deg) scale(1, 1); }
-  35% { transform: perspective(650px) rotateX(-2deg) rotateY(-8deg) translateY(-14px) scale(0.94, 1.08); }
-  65% { transform: perspective(650px) rotateX(-6deg) rotateY(-14deg) translateY(2px) scale(1.06, 0.94); }
-  100% { transform: perspective(650px) rotateX(-5deg) rotateY(-12deg) scale(1, 1); }
+  0%   { transform: perspective(650px) rotateX(-15deg) rotateY(-14deg) scale(1, 1); }
+  35%  { transform: perspective(650px) rotateX(-8deg)  rotateY(-10deg) translateY(-14px) scale(0.94, 1.08); }
+  65%  { transform: perspective(650px) rotateX(-18deg) rotateY(-16deg) translateY(2px) scale(1.06, 0.94); }
+  100% { transform: perspective(650px) rotateX(-15deg) rotateY(-14deg) scale(1, 1); }
 }
 
 /* ================= 核心：矮胖小方块体 ================= */
@@ -269,14 +271,15 @@ onUnmounted(() => {
   border-radius: 0 4px 4px 0;
 }
 
+/* 干净纯粹的高光纯净顶面，无多余黑槽 */
 .face.top {
   width: 100%;
   height: 18px;
   top: -9px;
   transform: rotateX(90deg);
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
   border-radius: 4px 4px 0 0;
-  box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95);
 }
 
 .face.bottom {
@@ -288,7 +291,7 @@ onUnmounted(() => {
   border-radius: 0 0 4px 4px;
 }
 
-/* 螺栓孔 */
+/* 螺栓孔（第一版原样） */
 .screw {
   position: absolute;
   width: 2.5px;
@@ -446,7 +449,7 @@ onUnmounted(() => {
 /* ================= 蓬松云朵气泡 ================= */
 .tars-cloud-bubble {
   position: absolute;
-  bottom: calc(100% + 18px);
+  bottom: calc(100% + 16px);
   right: -8px;
   min-width: 120px;
   max-width: 190px;

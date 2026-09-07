@@ -86,6 +86,7 @@ const trailCanvasRef = ref(null)
 const thrusterLeft = ref(null)
 const thrusterRight = ref(null)
 
+
 // 鼠标位置与物理坐标
 let mouseX = -100
 let mouseY = -100
@@ -256,8 +257,6 @@ const updateLoop = () => {
       }
 
       ctx.fillStyle = `rgba(56, 189, 248, ${p.life * 0.7})`
-      ctx.shadowColor = '#38bdf8'
-      ctx.shadowBlur = 4
       ctx.beginPath()
       ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2)
       ctx.fill()
@@ -334,7 +333,7 @@ onUnmounted(() => {
   height: 100%;
   z-index: 3;
   /* 增加白色机身在深色/浅色背景上的对比立体光影 */
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease;
 }
 

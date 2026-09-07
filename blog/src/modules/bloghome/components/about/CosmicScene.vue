@@ -15,11 +15,9 @@
           <div class="planet-4"></div>
           <div class="planet-6"></div>
           
-          <!-- 5号动态地貌木星（带 SVG 噪波流体滤镜） -->
+          <!-- 5号木星（纯 GPU 硬件加速） -->
           <div class="planet-5">
-            <div class="structure-1"></div>
-            <div class="structure-2"></div>
-            <div class="structure-3"></div>
+            <div class="jupiter-clouds"></div>
           </div>
 
           <!-- 3D 立方体基座 -->
@@ -42,26 +40,31 @@
         </div>
       </div>
 
-      <!-- 可点击的高亮留言星辰 -->
+      <!-- 可点击的高亮留言星辰（电影级时空曲率跃迁） -->
       <div class="beacons-layer">
         <div
-          v-for="beacon in signalList"
+          v-for="(beacon, index) in currentGalaxySignals"
           :key="beacon.id"
           class="interactive-beacon"
+          :class="{
+            'is-warping-out': warpState === 'leaving',
+            'is-warping-in': warpState === 'entering'
+          }"
           :style="{ 
-            top: beacon.top, 
-            left: beacon.left,
-            '--delay': beacon.delay || '0s'
+            '--d-top': beacon.desktopTop,
+            '--d-left': beacon.desktopLeft,
+            '--m-top': beacon.mobileTop,
+            '--m-left': beacon.mobileLeft,
+            '--delay': beacon.delay || '0s',
+            '--stagger': `${index * 0.035}s`
           }"
           @click="openSignal(beacon)"
         >
-          <!-- 核心高亮发光核与十字星芒（加入交错延迟） -->
           <div class="beacon-core"></div>
           <div class="beacon-flare-h" :style="{ animationDelay: beacon.delay }"></div>
           <div class="beacon-flare-v" :style="{ animationDelay: beacon.delay }"></div>
           <div class="beacon-ripple" :style="{ animationDelay: beacon.delay }"></div>
           
-          <!-- 悬停频段微标签 -->
           <div class="beacon-hint">
             <span class="hint-dot"></span>
             <span class="hint-freq">{{ beacon.freq }}</span>
@@ -69,7 +72,19 @@
         </div>
       </div>
 
-      <!-- 宇宙背景音播放按钮 -->
+      <!-- 【左下角】下一星系跃迁控制按钮 -->
+      <button 
+        v-if="totalGalaxies > 1"
+        class="warp-galaxy-btn"
+        :disabled="warpState !== 'idle'"
+        @click="warpToNextGalaxy"
+        title="跃迁至下一个星系"
+      >
+        <span class="galaxy-tag">{{ String(currentGalaxyIndex + 1).padStart(2, '0') }}</span>
+        <span class="warp-label">跃迁</span>
+      </button>
+
+      <!-- 【右下角】宇宙背景音播放按钮 -->
       <button
         class="audio-icon-button"
         :class="{ 'is-playing': isPlaying }"
@@ -83,19 +98,6 @@
         <div class="bar"></div>
       </button>
       <audio ref="audioRef" preload="none" loop :src="cosmicAudio"></audio>
-
-      <!-- SVG 噪波滤镜定义 -->
-      <svg class="filter-svg" xmlns="http://www.w3.org/2000/svg">
-        <filter id="planet-structure">
-          <feTurbulence baseFrequency="0.195" />
-          <feColorMatrix
-            values="0 0 0 1 -9
-                    0 0 0 9 -1.5
-                    0 0 0 2 -6
-                    0 0 0 0 1"
-          />
-        </filter>
-      </svg>
     </div>
 
     <!-- 留言全息微窗 -->
@@ -110,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import CosmicSignalTerminal from './CosmicSignalTerminal.vue'
 
 import characterImg from '/about/person.webp'
@@ -125,77 +127,97 @@ const isModalOpen = ref(false)
 const activeSignal = ref(null)
 
 /**
- * 16 个精心测算的安全分散坐标池
- * 彻底绕开中央禁区：
- * - 顶部太阳 (X: 38%~62%, Y: 12%~45%)
- * - 左右运转行星 (X: 28%~72%, Y: 15%~55%)
- * - 中央基座与人物 (X: 42%~58%, Y: 60%~90%)
- * - 右下角音频控制按钮 (X: 85%~100%, Y: 85%~100%)
- * 
- * 坐标按“左右对角交替”排序，保证数量较少时也能均匀布满星空两侧
+ * 16 组双轨坐标池
+ * 移动端 (m) 严格避开顶部导航栏 (top >= 16%)，避让中央天体与底部两角按钮
  */
 const safePositions = [
-  { top: '16%', left: '10%' },  // 0: 左上远深空
-  { top: '22%', left: '86%' },  // 1: 右上深空
-  { top: '64%', left: '9%' },   // 2: 左下深空
-  { top: '38%', left: '76%' },  // 3: 右侧中上
-  { top: '38%', left: '19%' },  // 4: 左侧中上
-  { top: '74%', left: '84%' },  // 5: 右下远深空（高于音频按钮）
-  { top: '80%', left: '14%' },  // 6: 左侧下边缘
-  { top: '54%', left: '88%' },  // 7: 右侧中部偏外
-  { top: '12%', left: '24%' },  // 8: 左肩部极高点
-  { top: '13%', left: '75%' },  // 9: 右肩部极高点
-  { top: '50%', left: '8%' },   // 10: 左侧正中外沿
-  { top: '16%', left: '89%' },  // 11: 右上极远角
-  { top: '72%', left: '22%' },  // 12: 左侧近基座外沿
-  { top: '62%', left: '75%' },  // 13: 右侧近基座外沿
-  { top: '86%', left: '8%' },   // 14: 左下极边缘
-  { top: '84%', left: '88%' }   // 15: 右下极边缘
+  // 顶部天顶深空走廊
+  { d: { top: '16%', left: '10%' }, m: { top: '16%', left: '14%' } }, // 0
+  { d: { top: '22%', left: '86%' }, m: { top: '16%', left: '86%' } }, // 1
+  { d: { top: '12%', left: '24%' }, m: { top: '21%', left: '22%' } }, // 2
+  { d: { top: '13%', left: '75%' }, m: { top: '21%', left: '78%' } }, // 3
+
+  // 极左侧深空狭缝
+  { d: { top: '38%', left: '19%' }, m: { top: '32%', left: '8%' } },  // 4
+  { d: { top: '50%', left: '8%'  }, m: { top: '44%', left: '7%' } },  // 5
+  { d: { top: '64%', left: '9%'  }, m: { top: '56%', left: '8%' } },  // 6
+  { d: { top: '72%', left: '22%' }, m: { top: '68%', left: '9%' } },  // 7
+
+  // 极右侧深空狭缝
+  { d: { top: '38%', left: '76%' }, m: { top: '32%', left: '92%' } }, // 8
+  { d: { top: '54%', left: '88%' }, m: { top: '44%', left: '93%' } }, // 9
+  { d: { top: '62%', left: '75%' }, m: { top: '56%', left: '92%' } }, // 10
+  { d: { top: '74%', left: '84%' }, m: { top: '68%', left: '91%' } }, // 11
+
+  // 底部安全区（避开左下跃迁、右下音乐）
+  { d: { top: '80%', left: '14%' }, m: { top: '78%', left: '16%' } }, // 12
+  { d: { top: '86%', left: '8%'  }, m: { top: '83%', left: '26%' } }, // 13
+  { d: { top: '84%', left: '88%' }, m: { top: '85%', left: '50%' } }, // 14
+  { d: { top: '16%', left: '89%' }, m: { top: '76%', left: '68%' } }  // 15
 ]
 
-// 兜底默认示例
-const defaultSignals = [
-  {
-    id: 'beacon-1',
-    top: '16%',
-    left: '10%',
-    delay: '0s',
-    freq: '1420.405MHz',
-    source: '一路向北',
-    date: '2026.09',
-    message: '广告位招租'
-  }
-]
+// 原始数据
+const rawSignals = ref([
+  { id: 'beacon-1', freq: '1420.405MHz', source: '一路向北', date: '2026.09', message: '广告位招租' },
+])
 
-const signalList = ref([...defaultSignals])
+// ================= 星系分页与跃迁状态 =================
+const GALAXY_SIZE = 8
+const currentGalaxyIndex = ref(0)
+const warpState = ref('idle') // 'idle' | 'leaving' | 'entering'
 
-// 异步拉取审核通过的留言并分配分散坐标
+const totalGalaxies = computed(() => {
+  return Math.max(1, Math.ceil(rawSignals.value.length / GALAXY_SIZE))
+})
+
+// 当前星系的星座编排（星座异构算法）
+const currentGalaxySignals = computed(() => {
+  const start = currentGalaxyIndex.value * GALAXY_SIZE
+  const pageItems = rawSignals.value.slice(start, start + GALAXY_SIZE)
+
+  return pageItems.map((item, i) => {
+    const posIndex = (currentGalaxyIndex.value * 5 + i * 2) % safePositions.length
+    const basePos = safePositions[posIndex]
+    const delaySec = ((i * 0.45) % 2.5).toFixed(2)
+
+    return {
+      ...item,
+      id: item._id || item.id || `beacon-${start + i}`,
+      desktopTop: basePos.d.top,
+      desktopLeft: basePos.d.left,
+      mobileTop: basePos.m.top,
+      mobileLeft: basePos.m.left,
+      delay: `${delaySec}s`
+    }
+  })
+})
+
+// 星系跃迁函数（精准引力时序）
+const warpToNextGalaxy = () => {
+  if (warpState.value !== 'idle') return
+
+  // 1. 启动引力坍缩与能量回聚
+  warpState.value = 'leaving'
+
+  setTimeout(() => {
+    // 2. 切换星系数据，触发曲率破界冲入
+    currentGalaxyIndex.value = (currentGalaxyIndex.value + 1) % totalGalaxies.value
+    warpState.value = 'entering'
+
+    // 3. 定格平稳
+    setTimeout(() => {
+      warpState.value = 'idle'
+    }, 600)
+  }, 400) // 400ms 恰好让各阶梯信标的引力收拢平稳归零
+}
+
+// 异步拉取后端留言
 const fetchApprovedSignals = async () => {
   try {
     const res = await fetch('/api/signals')
     const json = await res.json()
     if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-      signalList.value = json.data.map((item, index) => {
-        const basePos = safePositions[index % safePositions.length]
-        
-        // 增加微小非对称扰动（±1.2%），防止超出 16 条时硬性重合
-        const offsetTop = ((index * 7) % 5 - 2) * 0.5
-        const offsetLeft = ((index * 11) % 5 - 2) * 0.5
-        
-        // 分散错开闪烁与脉冲节奏
-        const delaySec = ((index * 0.65) % 2.8).toFixed(2)
-
-        return {
-          id: item._id || `beacon-${index}`,
-          top: `calc(${basePos.top} + ${offsetTop}%)`,
-          left: `calc(${basePos.left} + ${offsetLeft}%)`,
-          delay: `${delaySec}s`,
-          freq: item.freq || '1420.405MHz',
-          source: item.source,
-          date: item.date,
-          message: item.message
-        }
-      })
+      rawSignals.value = json.data
     }
   } catch (e) {
     console.warn('使用默认信标数据:', e)
@@ -203,6 +225,7 @@ const fetchApprovedSignals = async () => {
 }
 
 const openSignal = (beacon) => {
+  if (warpState.value !== 'idle') return
   activeSignal.value = beacon
   isModalOpen.value = true
 }
@@ -218,7 +241,7 @@ const toggleAudio = () => {
   }
 }
 
-// Canvas 星空与流星雨渲染
+// Canvas 星空流星系统
 onMounted(() => {
   fetchApprovedSignals()
   const canvas = canvasRef.value
@@ -227,20 +250,20 @@ onMounted(() => {
 
   let width = 0
   let height = 0
-  let dpr = window.devicePixelRatio || 1
+  let dpr = 1
 
   let staticStars = []
   let twinklingStars = []
 
   const initStars = () => {
-    staticStars = Array.from({ length: 800 }, () => ({
+    staticStars = Array.from({ length: 600 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
       size: Math.random() * 0.9 + 0.2,
       alpha: Math.random() * 0.45 + 0.1
     }))
 
-    twinklingStars = Array.from({ length: 150 }, () => ({
+    twinklingStars = Array.from({ length: 100 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
       size: Math.random() * 1.3 + 0.6,
@@ -252,11 +275,11 @@ onMounted(() => {
 
   const handleResize = () => {
     if (!canvas) return
-    dpr = window.devicePixelRatio || 1
+    dpr = Math.min(window.devicePixelRatio || 1, 1.25)
     width = canvas.offsetWidth
     height = canvas.offsetHeight
-    canvas.width = width * dpr
-    canvas.height = height * dpr
+    canvas.width = Math.floor(width * dpr)
+    canvas.height = Math.floor(height * dpr)
     ctx.scale(dpr, dpr)
     initStars()
   }
@@ -271,9 +294,9 @@ onMounted(() => {
     reset() {
       this.x = Math.random() * width * 1.3
       this.y = Math.random() * (height * 0.5)
-      this.len = Math.random() * 110 + 60
+      this.len = Math.random() * 100 + 50
       this.speed = Math.random() * 7 + 7
-      this.size = Math.random() * 1.4 + 0.8
+      this.size = Math.random() * 1.2 + 0.8
       this.angle = (35 * Math.PI) / 180
       this.active = false
       this.wait = Math.random() * 180 + 30
@@ -311,7 +334,7 @@ onMounted(() => {
     }
   }
 
-  const shootingStars = Array.from({ length: 4 }, () => new ShootingStar())
+  const shootingStars = Array.from({ length: 3 }, () => new ShootingStar())
 
   const render = () => {
     ctx.clearRect(0, 0, width, height)
@@ -373,7 +396,6 @@ onMounted(() => {
 .cosmic-stage {
   --color-primary: rgba(220, 219, 219, 0.85);
   --time: 24s;
-
   width: 100%;
   height: 100%;
   position: relative;
@@ -385,13 +407,6 @@ onMounted(() => {
   perspective: 1000px;
 }
 
-.filter-svg {
-  position: absolute;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
 .space-canvas {
   position: absolute;
   inset: 0;
@@ -401,7 +416,7 @@ onMounted(() => {
   z-index: 1;
 }
 
-/* ================= 交互星星信标 (Beacon Stars) ================= */
+/* ================= 交互星星信标图层 ================= */
 .beacons-layer {
   position: absolute;
   inset: 0;
@@ -411,6 +426,8 @@ onMounted(() => {
 
 .interactive-beacon {
   position: absolute;
+  top: var(--d-top);
+  left: var(--d-left);
   width: 32px;
   height: 32px;
   display: flex;
@@ -419,14 +436,128 @@ onMounted(() => {
   cursor: pointer;
   pointer-events: auto;
   transform: translate(-50%, -50%);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  will-change: transform, opacity, filter;
 }
 
 .interactive-beacon:hover {
   transform: translate(-50%, -50%) scale(1.3);
 }
 
-/* 核心光点 */
+/* ================= 电影级：超空间跃迁动画 ================= */
+
+/* 1. 【高质感离场：引力坍缩与虚空湮灭】 */
+.interactive-beacon.is-warping-out {
+  pointer-events: none;
+  animation: warp-singularity-collapse 0.38s cubic-bezier(0.6, 0.05, 0.2, 1) forwards;
+  animation-delay: var(--stagger);
+}
+
+/* 提示气泡瞬隐，绝不拖泥带水 */
+.interactive-beacon.is-warping-out .beacon-hint {
+  opacity: 0 !important;
+  transform: translateX(-50%) translateY(0) scale(0.6) !important;
+  transition: all 0.12s ease !important;
+}
+
+/* 外部扩散波纹反向吸聚 */
+.interactive-beacon.is-warping-out .beacon-ripple {
+  animation: none !important;
+  transform: scale(0.1);
+  opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s ease;
+}
+
+/* 十字光芒瞬间极速向中心收拢折叠，杜绝散乱像素 */
+.interactive-beacon.is-warping-out .beacon-flare-h {
+  animation: none !important;
+  transform: scaleX(0) scaleY(2.5);
+  opacity: 0;
+  transition: all 0.22s cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.interactive-beacon.is-warping-out .beacon-flare-v {
+  animation: none !important;
+  transform: scaleY(0) scaleX(2.5);
+  opacity: 0;
+  transition: all 0.22s cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+/* 星体核心：聚变充能爆发 -> 极速回聚为针尖粒子湮灭 */
+.interactive-beacon.is-warping-out .beacon-core {
+  animation: core-flash-collapse 0.38s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 离场容器整体运动：先微吸蓄力，然后向深空极速陷落 */
+@keyframes warp-singularity-collapse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+    filter: brightness(3.5) drop-shadow(0 0 14px #38bdf8);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(0.7);
+    opacity: 0.9;
+    filter: brightness(2) blur(1px);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    filter: brightness(5) blur(3px);
+  }
+}
+
+/* 核心光斑的高能白炽脉冲 */
+@keyframes core-flash-collapse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px #ffffff, 0 0 20px rgba(180, 215, 255, 0.9);
+  }
+  30% {
+    transform: scale(2.2);
+    box-shadow: 0 0 25px #ffffff, 0 0 35px #38bdf8;
+    background: #ffffff;
+  }
+  100% {
+    transform: scale(0.1);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+/* 2. 【高质感入场：从深空曲率破界减速定格】 */
+.interactive-beacon.is-warping-in {
+  pointer-events: none;
+  animation: warp-arrive-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--stagger);
+}
+
+@keyframes warp-arrive-in {
+  0% {
+    transform: translate(-50%, -50%) scale(3.5);
+    opacity: 0;
+    filter: blur(8px) brightness(3);
+  }
+  35% {
+    opacity: 1;
+    filter: blur(1px) brightness(2);
+  }
+  75% {
+    transform: translate(-50%, -50%) scale(0.9);
+    filter: blur(0px) brightness(1.2);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    filter: blur(0px) brightness(1);
+  }
+}
+
+/* 核心发光元素原生常态 */
 .beacon-core {
   width: 4.5px;
   height: 4.5px;
@@ -434,9 +565,9 @@ onMounted(() => {
   background: #ffffff;
   box-shadow: 0 0 10px #ffffff, 0 0 20px rgba(180, 215, 255, 0.9);
   z-index: 2;
+  transition: all 0.2s ease;
 }
 
-/* 十字星芒 */
 .beacon-flare-h {
   position: absolute;
   width: 26px;
@@ -453,7 +584,6 @@ onMounted(() => {
   animation: flare-glow 3s infinite ease-in-out;
 }
 
-/* 脉冲扩散光环 */
 .beacon-ripple {
   position: absolute;
   width: 10px;
@@ -464,16 +594,8 @@ onMounted(() => {
 }
 
 @keyframes beacon-wave {
-  0% {
-    width: 6px;
-    height: 6px;
-    opacity: 0.9;
-  }
-  100% {
-    width: 38px;
-    height: 38px;
-    opacity: 0;
-  }
+  0% { width: 6px; height: 6px; opacity: 0.9; }
+  100% { width: 38px; height: 38px; opacity: 0; }
 }
 
 @keyframes flare-glow {
@@ -481,7 +603,6 @@ onMounted(() => {
   50% { opacity: 1; transform: scale(1.2); }
 }
 
-/* 悬停时的频段微标签 */
 .beacon-hint {
   position: absolute;
   top: 100%;
@@ -524,7 +645,116 @@ onMounted(() => {
   transform: translateX(-50%) translateY(10px);
 }
 
-/* ================= 场景 3D 样式 ================= */
+/* ================= 【左下角】星系跃迁按钮 ================= */
+.warp-galaxy-btn {
+  position: absolute;
+  left: 2rem;
+  bottom: 2.2rem;
+  z-index: 4200;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(18, 20, 26, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: #ffffff;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.warp-galaxy-btn:hover:not(:disabled) {
+  background: rgba(30, 35, 45, 0.85);
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+  transform: translateY(-2px);
+}
+
+.warp-galaxy-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.warp-galaxy-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.galaxy-tag {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  padding-right: 7px;
+}
+
+.warp-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.warp-galaxy-btn:hover .warp-arrow {
+  transform: translate(2px, -2px);
+}
+
+/* ================= 【右下角】背景音按钮 ================= */
+.audio-icon-button {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  position: absolute;
+  right: 2rem;
+  bottom: 2.2rem;
+  z-index: 4200;
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.audio-icon-button:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-icon-button .bar {
+  background: #ffffff;
+  height: 1.2rem;
+  width: 0.085rem;
+  border-radius: 1px;
+}
+
+.audio-icon-button .bar:nth-of-type(1),
+.audio-icon-button .bar:nth-of-type(5) { height: 0.4rem; }
+.audio-icon-button .bar:nth-of-type(2),
+.audio-icon-button .bar:nth-of-type(4) { height: 0.8rem; }
+
+.audio-icon-button.is-playing .bar {
+  animation: bar-dance 1s ease-in-out infinite alternate;
+}
+.audio-icon-button.is-playing .bar:nth-of-type(2) { animation-delay: 0.2s; }
+.audio-icon-button.is-playing .bar:nth-of-type(3) { animation-delay: 0.4s; }
+.audio-icon-button.is-playing .bar:nth-of-type(4) { animation-delay: 0.6s; }
+.audio-icon-button.is-playing .bar:nth-of-type(5) { animation-delay: 0.8s; }
+
+@keyframes bar-dance {
+  from { transform: scaleY(0.3); }
+  to { transform: scaleY(1.3); }
+}
+
+/* ================= 场景 3D 核心样式 ================= */
 .bottom-dark-fade {
   position: absolute;
   bottom: 0;
@@ -546,7 +776,6 @@ onMounted(() => {
   z-index: 3;
   transform: translateY(45px);
   transform-origin: center center;
-  transition: transform 0.3s ease;
 }
 
 .scene {
@@ -563,7 +792,6 @@ onMounted(() => {
   50% { transform: scale(1.03); }
 }
 
-/* 3D 浮空基座 */
 .cuboid {
   position: absolute;
   transform-style: preserve-3d;
@@ -634,7 +862,6 @@ onMounted(() => {
   }
 }
 
-/* 2D 人物 */
 .character-container {
   position: absolute;
   transform: translateY(268px);
@@ -664,7 +891,6 @@ onMounted(() => {
   filter: blur(1.5px) brightness(0.65);
 }
 
-/* 行星系统 */
 @keyframes moon-animation {
   0%, 100% { --moon-angle: 180deg; }
   50% { --moon-angle: 200deg; }
@@ -677,7 +903,7 @@ onMounted(() => {
   background: radial-gradient(circle at 60% 60%, #ffffff, #eae0e2 60%, #c9c7c7 100%);
   position: absolute;
   transform: translateY(-280px);
-  box-shadow: 0 0 100px rgba(255, 255, 255, 0.45), 0 0 180px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.35);
   transform-style: preserve-3d;
 }
 
@@ -692,7 +918,7 @@ onMounted(() => {
   --z: calc(cos(var(--moon-angle)) * var(--r) * -1);
   transform: translateY(var(--y)) translateX(130px) translateZ(var(--z));
   animation: moon-animation var(--time) ease-in-out infinite;
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
   transform-style: preserve-3d;
 }
 
@@ -737,7 +963,7 @@ onMounted(() => {
   border-radius: 50%;
   width: 120px;
   height: 120px;
-  background: radial-gradient(90% 90% at 30% 55%, #797777, #515051 52%, #212528 62%, transparent 82%);
+  background: #25282d;
   position: absolute;
   --r: 60px;
   --y: calc(-260px + sin(var(--moon-angle)) * var(--r));
@@ -748,46 +974,33 @@ onMounted(() => {
   animation: moon-animation var(--time) ease-in-out infinite;
 }
 
-.planet-5 .structure-1 {
+.jupiter-clouds {
   position: absolute;
-  inset: -100px;
-  filter: url(#planet-structure) saturate(0);
-  mix-blend-mode: lighten;
-  opacity: 0.4;
-  transform: scale(3) translateX(10px);
-  animation: move-to-left calc(var(--time) * 6) ease-in-out infinite;
-}
-
-.planet-5 .structure-2 {
-  position: absolute;
-  inset: -100px;
-  filter: url(#planet-structure) saturate(0);
-  mix-blend-mode: lighten;
-  opacity: 0.5;
-  transform: scale(5);
-  animation: move-to-left calc(var(--time) * 6) ease-in-out infinite;
-}
-
-.planet-5 .structure-3 {
-  position: absolute;
-  inset: -100px;
-  filter: url(#planet-structure) saturate(0);
-  mix-blend-mode: lighten;
-  opacity: 0.15;
-  transform: scale(0.4) translateX(10px);
-  animation: move-to-left calc(var(--time) * 6) ease-in-out infinite;
+  inset: -50px;
+  background: repeating-linear-gradient(
+    -20deg,
+    #1d1f23 0px,
+    #3f434a 12px,
+    #696767 22px,
+    #545152 34px,
+    #2a2c31 46px
+  );
+  opacity: 0.85;
+  animation: jupiter-shift calc(var(--time) * 2) linear infinite;
+  will-change: transform;
 }
 
 .planet-5::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 10% 20%, transparent 30%, #171a1c 70%);
+  background: radial-gradient(circle at 10% 20%, transparent 35%, rgba(16, 18, 20, 0.9) 75%);
+  pointer-events: none;
 }
 
-@keyframes move-to-left {
-  0%, 100% { translate: 0 0; }
-  50% { translate: -80px 0; }
+@keyframes jupiter-shift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-46px); }
 }
 
 .planet-6 {
@@ -819,57 +1032,41 @@ onMounted(() => {
   clip-path: ellipse(47% 22% at 50% 50%);
 }
 
-/* 背景音按钮 */
-.audio-icon-button {
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  padding: 0.5rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
-  position: absolute;
-  right: 2rem;
-  bottom: 2.2rem;
-  z-index: 4200;
-  display: flex;
-  gap: 0.15rem;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.75;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* ================= 移动端精准避让与样式适配 ================= */
+@media (max-width: 768px) {
+  .interactive-beacon {
+    top: var(--m-top);
+    left: var(--m-left);
+  }
 
-.audio-icon-button:hover {
-  opacity: 1;
-  transform: scale(1.1);
-  border-color: rgba(255, 255, 255, 0.9);
-}
+  /* 靠左侧边缘的星星，气泡向右对齐，防止被屏幕切除 */
+  .interactive-beacon[style*="--m-left: 7%"] .beacon-hint,
+  .interactive-beacon[style*="--m-left: 8%"] .beacon-hint,
+  .interactive-beacon[style*="--m-left: 9%"] .beacon-hint {
+    left: 0;
+    transform: translateX(0) translateY(6px);
+  }
 
-.audio-icon-button .bar {
-  background: #ffffff;
-  height: 1.2rem;
-  width: 0.085rem;
-  border-radius: 1px;
-}
+  /* 靠右侧边缘的星星，气泡向左对齐 */
+  .interactive-beacon[style*="--m-left: 91%"] .beacon-hint,
+  .interactive-beacon[style*="--m-left: 92%"] .beacon-hint,
+  .interactive-beacon[style*="--m-left: 93%"] .beacon-hint {
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(6px);
+  }
 
-.audio-icon-button .bar:nth-of-type(1),
-.audio-icon-button .bar:nth-of-type(5) { height: 0.4rem; }
-.audio-icon-button .bar:nth-of-type(2),
-.audio-icon-button .bar:nth-of-type(4) { height: 0.8rem; }
+  /* 跃迁按钮与音乐按钮在手机端的位置微调 */
+  .warp-galaxy-btn {
+    left: 1.2rem;
+    bottom: 1.5rem;
+    padding: 5px 12px;
+  }
 
-.audio-icon-button.is-playing .bar {
-  animation: bar-dance 1s ease-in-out infinite alternate;
-}
-.audio-icon-button.is-playing .bar:nth-of-type(2) { animation-delay: 0.2s; }
-.audio-icon-button.is-playing .bar:nth-of-type(3) { animation-delay: 0.4s; }
-.audio-icon-button.is-playing .bar:nth-of-type(4) { animation-delay: 0.6s; }
-.audio-icon-button.is-playing .bar:nth-of-type(5) { animation-delay: 0.8s; }
-
-@keyframes bar-dance {
-  from { transform: scaleY(0.3); }
-  to { transform: scaleY(1.3); }
+  .audio-icon-button {
+    right: 1.2rem;
+    bottom: 1.5rem;
+  }
 }
 
 @media (max-height: 850px) {
@@ -880,7 +1077,6 @@ onMounted(() => {
 }
 @media (max-width: 900px) {
   .scene-scaler { transform: scale(0.76) translateY(38px); }
-  .audio-icon-button { right: 1.2rem; bottom: 1.5rem; }
 }
 @media (max-width: 600px) {
   .scene-scaler { transform: scale(0.6) translateY(30px); }
