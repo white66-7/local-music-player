@@ -18,7 +18,6 @@ import { articles as allArticles } from '@/date/articles'
 import Navbar from '@/modules/bloghome/components/load.vue'
 import SearchRecentCard from '@/modules/bloghome/components/articles/search_article.vue'
 import PageHeader from '@/modules/bloghome/components/articles/PageHeader.vue'
-// 💡 1. 引入独立的 TARS 挂件
 import TarsWidget from '@/modules/bloghome/components/articles/TarsWidget.vue'
 import { preloadImages as cachePreload, isImageLoaded, markImageLoaded } from '@/modules/bloghome/utils/imageCache'
 import { prefetchArticleDetail } from '@/modules/bloghome/utils/prefetch'

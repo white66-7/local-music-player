@@ -995,38 +995,80 @@ main {
   padding: 0;
 }
 
+/* ==================== 经典科技深蓝 + 水平向右箭头 ==================== */
 .markdown-body :deep(a) {
-  color: #23c483;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   text-decoration: none;
   font-weight: 700;
-  position: relative;
-  padding: 0 2px;
-  transition: color 0.3s ease;
+  padding: 0 1px;
+  margin: 0 2px;
+  cursor: pointer;
+  vertical-align: baseline;
+  white-space: nowrap;
+
+  /* 沉稳科技深蓝，掠过清透冰蓝高光 */
+  background: linear-gradient(
+    110deg,
+    #1d4ed8 0%,
+    #1d4ed8 35%,
+    #93c5fd 50%,
+    #1d4ed8 65%,
+    #1d4ed8 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShine 4s linear infinite;
+
+  /* 点击时的弹性按压反馈 */
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* 纯水平向右矢量箭头（→） */
 .markdown-body :deep(a)::after {
   content: '';
-  position: absolute;
-  width: 100%;
-  height: 2px;
-  bottom: -2px;
-  left: 0;
-  background-color: #23c483;
-  transform: scaleX(0);
-  transform-origin: bottom right;
-  transition: transform 0.3s ease-out;
-  border-radius: 2px;
+  display: inline-block;
+  width: 0.85em;  /* 水平箭头的黄金比例尺寸 */
+  height: 0.85em;
+  background-color: #1d4ed8; /* 与文字完全同色一体 */
+
+  /* 顶尖开源图标库的标准水平向右箭头（粗度 3.2，端点圆润） */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='4' y1='12' x2='19' y2='12'%3E%3C/line%3E%3Cpolyline points='12 5 19 12 12 19'%3E%3C/polyline%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='4' y1='12' x2='19' y2='12'%3E%3C/line%3E%3Cpolyline points='12 5 19 12 12 19'%3E%3C/polyline%3E%3C/svg%3E") no-repeat center / contain;
+
+  /* 精准对准中文字体垂直中心线 */
+  transform: translateY(1px);
+  flex-shrink: 0;
+
+  /* 平滑顺畅的向右平移过渡 */
+  transition: transform 0.25s ease-in-out, background-color 0.2s ease;
 }
 
-.markdown-body :deep(a):hover {
-  color: #1a9f68;
-}
+/* ==================== 交互动效 ==================== */
 
+/* 悬停时：箭头顺着指向自然向右滑出 4px，颜色加亮至 2563eb */
 .markdown-body :deep(a):hover::after {
-  transform: scaleX(1);
-  transform-origin: bottom left;
+  background-color: #2563eb;
+  transform: translateY(1px) translateX(4px);
 }
 
+/* 鼠标按下时的微机械触感 */
+.markdown-body :deep(a):active {
+  transform: scale(0.96);
+}
+
+/* ==================== 渐变流动动画 ==================== */
+@keyframes textShine {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
 .back-btn {
   position: fixed;
   top: 80px;

@@ -87,7 +87,7 @@ export const articles: Article[] = [
   },
       {
     id: 6,
-    title: '实战记录:悬停与入场动画效果',
+    title: '实战记录:基础交互动画',
     type: '前端',
     date: '2026-06-30',
     readTime: '3 minutes',
@@ -109,7 +109,7 @@ export const articles: Article[] = [
   },
   {
     id: 8,
-    title: '期末自救笔记',
+    title: '期末复习笔记',
     type: '大学',
     date: '2026-07-01',
     readTime: '2 minutes',
@@ -219,9 +219,9 @@ export const articles: Article[] = [
   },
   {
     id: 18,
-    title: '3D效果与动画实现',
+    title: '3D效果与进阶动画',
     type: '前端',
-    date: '2026-09-01',
+    date: '2026-09-06',
     readTime: '10 minutes',
     excerpt: '',
     tags: ['前端', 'Gsap', 'Snap'],

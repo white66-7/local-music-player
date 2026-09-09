@@ -240,7 +240,7 @@ const exitSplash = () => {
     stroke-dashoffset: 800;
     fill: transparent;
   }
-  65% {
+  75% {
     stroke-dashoffset: 0;
     fill: transparent;
   }
